@@ -1,0 +1,67 @@
+User
+
+POST /api/user/register/
+Body: { name, email, password, dob? }
+
+POST /api/user/login/
+Body: { email, password }
+
+PUT /api/user/update/
+Body: { user_id, name?, email?, password?, dob? }
+
+DELETE /api/user/delete/
+Body or Query: user_id=
+
+==================================================
+ChatHead
+
+POST /api/chathead/create/
+Body: { user_id, user_message }
+
+GET /api/chathead/list/
+Query: user_id=
+(optional; if omitted, lists all)
+
+GET /api/chathead/get/
+Query: chat_head_id=
+
+DELETE /api/chathead/delete/
+
+Body or Query: chat_head_id=
+
+================================================
+ChatMessage
+
+POST /api/chatmessage/create/
+Body: { chat_head_id, user_message }
+
+GET /api/chatmessage/list/
+Query: chat_head_id=
+
+DELETE /api/chatmessage/delete/
+Body or Query: chat_message_id=
+
+PUT /api/chatmessage/update/
+Body: { chat_message_id, user_message } // user_message is the new text
+
+
+==============================================
+
+reference for all GET endpoints and where to put parameters
+
+- ChatHead
+  - GET /api/chathead/list/
+    - Query param: user_id (optional)
+  - GET /api/chathead/get/
+    - Query param: chat_head_id (required)
+- ChatMessage
+  - GET /api/chatmessage/list/
+    - Query param: chat_head_id (required).
+
+    
+Delete endpoints accept id in either place
+
+- DELETE /api/chathead/delete/
+  - Provide chat_head_id either in the query string or as JSON body
+- DELETE /api/chatmessage/delete/
+  - Provide chat_message_id either in the query string or as JSON body
