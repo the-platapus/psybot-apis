@@ -1,0 +1,110 @@
+Errors encountered while building/running the project
+=====================================================
+
+1) pip dependency resolution conflict
+--------------------------------------------------
+Command that triggered it:
+  python -m pip install -r requirements.txt
+
+Error / message (summary):
+  ERROR: Cannot install -r requirements.txt ... ResolutionImpossible
+  The conflict was caused by: google-generativeai 0.8.5, google-ai-generativelanguage, and langchain-google-genai (version bounds incompatible).
+
+Root cause:
+  Two packages required incompatible versions of the Google generative package(s). A version pin in requirements.txt conflicted with the dependency range of `langchain-google-genai`.
+
+Action taken:
+  Removed explicit entries for `google-ai-generativelanguage` and `google-generativeai==0.8.5` from `requirements.txt` so pip could resolve a compatible version for `langchain-google-genai`.
+
+Status: Resolved enough to continue install, but note a related post-install warning (see item 2).
+
+
+2) pip post-install dependency warning (incompatible installed versions)
+--------------------------------------------------
+Observed message during install:
+  ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+  google-generativeai 0.3.1 requires google-ai-generativelanguage==0.4.0, but you have google-ai-generativelanguage 0.7.0 which is incompatible.
+
+Root cause:
+  An already-installed package (or transitive dependency) required a specific older version of `google-ai-generativelanguage` while pip installed a newer compatible version for other packages. Pip's resolver warns about leftover incompatibilities.
+
+Recommendation:
+  If you plan to use the Google generative packages at runtime, verify the versions your runtime code expects. Consider pinning compatible versions intentionally and re-running pip, or use a clean virtualenv to avoid preinstalled conflicting packages.
+
+Status: Left as-is during this session (no crash), but may cause runtime errors for code that expects the older pinned version.
+
+
+3) Django migrate failed: MongoDB connection refused
+--------------------------------------------------
+Command that triggered it:
+  python manage.py migrate --noinput
+
+Error / message (summary):
+  pymongo.errors.ServerSelectionTimeoutError: localhost:27017: [WinError 10061] No connection could be made because the target machine actively refused it
+
+Root cause:
+  Django (via djongo/pymongo) attempted to connect to MongoDB at the default `mongodb://localhost:27017` but no MongoDB server (mongod) was running or reachable.
+
+Action taken:
+  Implemented an opt-in SQLite dev fallback (see `USE_SQLITE` env var) so local testing can proceed without MongoDB. This is a development-only convenience.
+
+Recommendation:
+  For production or realistic integration tests, run a MongoDB instance (local or Atlas) and set `MONGO_URI` and `MONGO_DB_NAME` in environment or `.env`.
+
+Status: Resolved for local dev via SQLite fallback (see item 4).
+
+
+4) SQLite migration error: "table new__chat_head has no column named _id"
+--------------------------------------------------
+Command that triggered it:
+  python manage.py migrate --noinput (with USE_SQLITE=True)
+
+Error / message (summary):
+  sqlite3.OperationalError: table new__chat_head has no column named _id
+
+Root cause:
+  The project's models and generated migration used `djongo.models.fields.ObjectIdField` for primary keys (`_id`), which doesn't map cleanly to SQLite's schema. When Django attempted to alter/remake tables during migration it failed because of the incompatible `_id` column type and migration operations produced SQL expecting different columns.
+
+Action taken (to allow quick local testing):
+  - Added `database/fields.py` with a `DevObjectIdField` (a CharField storing 24-char hex strings) to mimic ObjectId for dev use.
+  - Updated `database/models/*.py` to use `DevObjectIdField` when `USE_SQLITE=True`, otherwise keep djongo ObjectIdField.
+  - Edited `database/migrations/0001_initial.py` (dev-only) to make `_id` fields `models.CharField(max_length=24, primary_key=True, ...)` so the initial migration can be applied under SQLite.
+  - Deleted the existing `db.sqlite3` and re-ran migrations successfully under `USE_SQLITE=True`.
+
+Important note:
+  The migration file change and model shims are development-only hacks to enable local testing without MongoDB. They should be reverted (or handled via separate, clearly marked dev migrations) before deploying to MongoDB in production.
+
+Status: Resolved for local dev testing; migrations applied successfully under SQLite.
+
+
+5) Temporary lint/compile errors after model edits ("models is not defined")
+--------------------------------------------------
+Observed message (reported by editor/linter) after changing imports:
+  "models is not defined" in `database/models/chat_head.py` etc.
+
+Root cause:
+  When refactoring from `from djongo import models` to `from djongo import models as djongo_models`, some model field lines still used the old `models` name.
+
+Action taken:
+  Fixed the imports and replaced `models.` with `djongo_models.` consistently in the model files.
+
+Status: Fixed.
+
+
+Server / run status at end of session
+--------------------------------------------------
+ - After the SQLite dev modifications and successful migrations, the Django dev server was started under `USE_SQLITE=True`:
+     python manage.py runserver 0.0.0.0:8000
+ - The server is running in the workspace terminal (for local testing).
+
+
+Summary and recommendations
+--------------------------------------------------
+ - The repo now supports an opt-in SQLite dev mode to bypass MongoDB for quick local testing (set `USE_SQLITE=True` in your environment when running manage.py commands).
+ - For production or full-feature testing, run a MongoDB instance and unset `USE_SQLITE` (or set it to False). If you return to MongoDB, revert the migration/migration edits made for SQLite compatibility or create proper migrations for the MongoDB schema.
+ - Consider cleaning up requirements to resolve the google generative package version mismatches explicitly (pin compatible versions or use a clean venv per environment) to avoid subtle runtime incompatibilities.
+
+If you want, I can:
+ - Revert the migration file edits and create a separate dev-only migration file to keep history clean.
+ - Help set up Docker-based MongoDB and switch the environment back to Djongo automatically.
+ - Run a smoke test against a specific API endpoint and save the response.

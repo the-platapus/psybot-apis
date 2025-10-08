@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
-ALLOWED_HOSTS = ['192.168.100.8','localhost','127.0.0.1','0.0.0.0','*']
+ALLOWED_HOSTS = ['192.168.100.8', 'localhost', '127.0.0.1', '0.0.0.0', '*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,13 +54,19 @@ WSGI_APPLICATION = 'Psychiatrist_chatbot.wsgi.application'
 ASGI_APPLICATION = 'Psychiatrist_chatbot.asgi.application'
 
 # Database (Djongo/MongoDB)
+# Database (Djongo/MongoDB)
+# This project requires MongoDB (djongo) in production. Configure via env vars.
+MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', os.getenv('MONGO_DB_NAME', 'psychat'))
+# prefer MONGO_URI, fall back to MONGO_DB_URI for user-provided name
+MONGO_URI = os.getenv('MONGO_URI', os.getenv('MONGO_DB_URI', 'mongodb://localhost:27017'))
+
 DATABASES = {
     'default': {
         'ENGINE': 'djongo',
-        'NAME': os.getenv('MONGO_DB_NAME', 'psychat'),
+        'NAME': MONGO_DB_NAME,
         'ENFORCE_SCHEMA': False,
         'CLIENT': {
-            'host': os.getenv('MONGO_URI', 'mongodb://localhost:27017'),
+            'host': MONGO_URI,
         },
     }
 }

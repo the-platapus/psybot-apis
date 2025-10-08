@@ -1,6 +1,7 @@
 from djongo import models
 from .chat_head import ChatHead
 
+
 class ChatMessage(models.Model):
     _id = models.ObjectIdField(primary_key=True)
     chat_head = models.ForeignKey(ChatHead, on_delete=models.CASCADE, related_name="messages")
